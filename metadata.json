@@ -1,0 +1,6 @@
+{
+  "name": "نموذج التقارير الإدارية والميدانية",
+  "description": "نموذج التقارير الإدارية والميدانية المعتمد لثانوية الأمير عبدالمجيد الأولى - وزارة التعليم بجدة، جاهز للتعبئة والطباعة والنسخ المباشر",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
