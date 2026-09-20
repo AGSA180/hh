@@ -17,6 +17,7 @@ import {
   Archive,
   Layers,
   BookmarkCheck,
+  PlusCircle,
 } from 'lucide-react';
 import { ReportData } from '../types';
 import { generateMarkdown, generatePlainText } from '../utils/formatters';
@@ -41,6 +42,7 @@ interface ActionBarProps {
   onSwitchToWeekly?: () => void;
   onOpenIndependentModal?: () => void;
   onOpenArchiveModal?: () => void;
+  onOpenNewReportModal?: () => void;
   onSaveToArchive?: () => void;
   savedReportsCount?: number;
 }
@@ -65,6 +67,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
   onSwitchToWeekly,
   onOpenIndependentModal,
   onOpenArchiveModal,
+  onOpenNewReportModal,
   onSaveToArchive,
   savedReportsCount = 0,
 }) => {
@@ -116,6 +119,19 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Left: View toggle & Mode tabs */}
           <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+            {/* Direct New Report Button */}
+            {onOpenNewReportModal && (
+              <button
+                type="button"
+                onClick={onOpenNewReportModal}
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-bold bg-emerald-850 hover:bg-emerald-900 text-white border border-emerald-950 shadow-xs transition min-h-[38px]"
+                title="إنشاء تقرير جديد مع حفظ التقرير الحالي تلقائياً"
+              >
+                <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
+                <span>+ تقرير جديد</span>
+              </button>
+            )}
+
             {/* Toggle view mode */}
             <button
               type="button"
@@ -200,8 +216,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 title="فتح أرشيف التقارير المحفوظة واسترجاعها أو طباعتها"
               >
                 <Archive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700" />
-                <span className="hidden xs:inline">أرشيف التقارير</span>
-                <span className="xs:hidden">الأرشيف</span>
+                <span className="hidden xs:inline">التقارير السابقة</span>
+                <span className="xs:hidden">السابقة</span>
                 {savedReportsCount > 0 && (
                   <span className="bg-amber-700 text-white text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
                     {savedReportsCount}

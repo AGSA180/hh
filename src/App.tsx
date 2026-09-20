@@ -22,6 +22,8 @@ import { ActionBar } from './components/ActionBar';
 import { MarkdownModal } from './components/MarkdownModal';
 import { IndependentReportModal } from './components/IndependentReportModal';
 import { SavedReportsModal } from './components/SavedReportsModal';
+import { NewReportModal } from './components/NewReportModal';
+import { PreviousReportsBar } from './components/PreviousReportsBar';
 import {
   getSavedReports,
   saveReportToArchive,
@@ -43,12 +45,19 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (!parsed.id || parsed.id === 'rep_init') {
+          parsed.id = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        }
+        return parsed;
       }
     } catch {
       // ignore
     }
-    return INITIAL_REPORT_DATA;
+    return {
+      ...INITIAL_REPORT_DATA,
+      id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    };
   });
 
   const [isReadOnly, setIsReadOnly] = useState<boolean>(false);
@@ -57,18 +66,25 @@ export default function App() {
   const [isMarkdownModalOpen, setIsMarkdownModalOpen] = useState<boolean>(false);
   const [isIndependentModalOpen, setIsIndependentModalOpen] = useState<boolean>(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState<boolean>(false);
-  const [savedReports, setSavedReports] = useState<SavedReport[]>(() => getSavedReports());
+  const [isNewReportModalOpen, setIsNewReportModalOpen] = useState<boolean>(false);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>(() => {
+    const list = getSavedReports();
+    return list;
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hasSavedDraft, setHasSavedDraft] = useState<boolean>(() => {
     return !!localStorage.getItem(DRAFT_STORAGE_KEY);
   });
 
-  // Autosave to current work state
+  // Continuous Autosave: Persists active work and automatically syncs to archive so reports are NEVER lost!
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(reportData));
-    } catch {
-      // ignore
+      // Automatically keep the current report synced into the archive list
+      saveReportToArchive(reportData);
+      setSavedReports(getSavedReports());
+    } catch (err) {
+      console.error('Autosave error:', err);
     }
   }, [reportData]);
 
@@ -93,44 +109,99 @@ export default function App() {
 
   const handleReportTypeChange = (type: ReportType) => {
     if (type === 'weekly') {
-      const weekly = createWeeklyReportData(reportData);
-      setReportData(weekly);
-      showToast('تم تفعيل التقرير الأسبوعي الشامل مع جميع البنود الـ 12');
+      handleSwitchToWeekly();
     } else {
-      setReportData((prev) => ({
-        ...prev,
-        reportType: 'daily',
-        title: prev.title.includes('الأسبوعي') ? '' : prev.title,
-      }));
-      showToast('تم التبديل إلى نمط التقرير اليومي/الدوري');
+      handleSwitchToDaily();
     }
   };
 
   const handleSwitchToDaily = () => {
-    handleReportTypeChange('daily');
+    // 1. Preserve current report in archive safely
+    saveReportToArchive(reportData);
+    // 2. Generate a new daily report with its own unique ID
+    const newDaily = createDailyReportData();
+    const freshId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    newDaily.id = freshId;
+    saveReportToArchive(newDaily, true);
+    setReportData(newDaily);
+    setSavedReports(getSavedReports());
+    showToast('تم حفظ التقرير السابق في الأرشيف، وبدء تقرير يومي جديد');
   };
 
   const handleSwitchToWeekly = () => {
-    handleReportTypeChange('weekly');
+    // 1. Preserve current report in archive safely
+    saveReportToArchive(reportData);
+    // 2. Generate a new weekly report with its own unique ID
+    const newWeekly = createWeeklyReportData();
+    const freshId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    newWeekly.id = freshId;
+    saveReportToArchive(newWeekly, true);
+    setReportData(newWeekly);
+    setSavedReports(getSavedReports());
+    showToast('تم حفظ التقرير السابق في الأرشيف، وبدء تقرير أسبوعي شامل جديد');
+  };
+
+  const handleNewBlankReport = () => {
+    // 1. Preserve current report in archive safely
+    saveReportToArchive(reportData);
+    // 2. Generate a clean blank report with its own unique ID
+    const freshId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const blankReport: ReportData = {
+      ...INITIAL_REPORT_DATA,
+      id: freshId,
+      title: 'تقرير متابعة إدارية وميدانية جديد',
+      domainDetails: '',
+      observations: [],
+      recommendations: '',
+      images: [],
+    };
+    saveReportToArchive(blankReport, true);
+    setReportData(blankReport);
+    setSavedReports(getSavedReports());
+    showToast('تم حفظ التقرير السابق في الأرشيف، وبدء تقرير فارغ جديد');
+  };
+
+  const handleDuplicateCurrent = () => {
+    const saved = saveReportToArchive(reportData);
+    const duplicated = duplicateSavedReport(saved.id);
+    setSavedReports(getSavedReports());
+    if (duplicated) {
+      setReportData(duplicated.data);
+      showToast(`تم إنشاء نسخة مكررة جديدة: ${duplicated.title}`);
+    }
   };
 
   const handleReset = () => {
-    if (window.confirm('هل أنت متأكد من تفريغ كافة الحقول والبدء بنموذج فارغ؟')) {
-      setReportData(INITIAL_REPORT_DATA);
-      showToast('تم تفريغ النموذج بنجاح');
+    if (
+      window.confirm(
+        'هل ترغب في بدء تقرير جديد؟ سيتم حفظ تقريرك الحالي بأمان في سجل التقارير السابقة.'
+      )
+    ) {
+      handleNewBlankReport();
     }
   };
 
   const handleLoadSample = () => {
-    setReportData(SAMPLE_REPORT);
-    showToast('تم تحميل بيانات تقرير نموذجي مكتمل بنجاح');
+    // Preserve current report in archive first
+    saveReportToArchive(reportData);
+    const sampleWithNewId: ReportData = {
+      ...SAMPLE_REPORT,
+      id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      title: 'تقرير مدرسي نموذجي مكتمل (عينة معتمدة)',
+    };
+    saveReportToArchive(sampleWithNewId, true);
+    setReportData(sampleWithNewId);
+    setSavedReports(getSavedReports());
+    showToast('تم حفظ التقرير السابق، وتحميل بيانات التقرير التجريبي النموذجي');
   };
 
   const handleSaveDraft = () => {
     try {
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(reportData));
+      saveReportToArchive(reportData);
+      setSavedReports(getSavedReports());
       setHasSavedDraft(true);
-      showToast('تم حفظ المسودة بنجاح في ذاكرة المتصفح');
+      showToast('تم حفظ المسودة والأرشيف بنجاح');
     } catch {
       showToast('تعذر حفظ المسودة');
     }
@@ -149,10 +220,17 @@ export default function App() {
   };
 
   const handleSelectIndependentDomain = (domain: string) => {
+    // 1. Preserve current report in archive safely
+    saveReportToArchive(reportData);
+    // 2. Generate a new independent item report with a fresh unique ID
     const itemData = createItemReportData(domain, reportData);
+    const freshId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    itemData.id = freshId;
+    saveReportToArchive(itemData, true);
     setReportData(itemData);
+    setSavedReports(getSavedReports());
     setIsIndependentModalOpen(false);
-    showToast(`تم إنشاء تقرير مستقل لبند: ${domain}`);
+    showToast(`تم حفظ التقرير السابق، وبدء تقرير مستقل لبند: ${domain}`);
   };
 
   const handleSaveToArchive = () => {
@@ -163,7 +241,9 @@ export default function App() {
   };
 
   const handleLoadReport = (report: SavedReport) => {
+    saveReportToArchive(reportData);
     setReportData(report.data);
+    setSavedReports(getSavedReports());
     setIsArchiveModalOpen(false);
     showToast(`تم استرجاع التقرير: ${report.title}`);
   };
@@ -184,7 +264,7 @@ export default function App() {
 
   const handleNewReportFromArchive = () => {
     setIsArchiveModalOpen(false);
-    setIsIndependentModalOpen(true);
+    setIsNewReportModalOpen(true);
   };
 
   const handleDirectPrintFromArchive = async (report: SavedReport) => {
@@ -415,6 +495,16 @@ export default function App() {
         </div>
       </header>
 
+      {/* Previous Reports & Quick Access Bar */}
+      <PreviousReportsBar
+        currentReport={reportData}
+        savedReports={savedReports}
+        onOpenNewReportModal={() => setIsNewReportModalOpen(true)}
+        onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        onLoadReport={handleLoadReport}
+        onDuplicateCurrent={handleDuplicateCurrent}
+      />
+
       {/* Action Toolbar */}
       <ActionBar
         reportData={reportData}
@@ -436,6 +526,7 @@ export default function App() {
         onSwitchToWeekly={handleSwitchToWeekly}
         onOpenIndependentModal={() => setIsIndependentModalOpen(true)}
         onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        onOpenNewReportModal={() => setIsNewReportModalOpen(true)}
         onSaveToArchive={handleSaveToArchive}
         savedReportsCount={savedReports.length}
       />
@@ -456,6 +547,17 @@ export default function App() {
           reportData.targetDomain ||
           (reportData.selectedDomains.length === 1 ? reportData.selectedDomains[0] : undefined)
         }
+      />
+
+      {/* New Report Modal */}
+      <NewReportModal
+        isOpen={isNewReportModalOpen}
+        onClose={() => setIsNewReportModalOpen(false)}
+        onNewDaily={handleSwitchToDaily}
+        onNewWeekly={handleSwitchToWeekly}
+        onNewIndependent={() => setIsIndependentModalOpen(true)}
+        onNewBlank={handleNewBlankReport}
+        currentReportTitle={reportData.title}
       />
 
       {/* Saved Reports Archive Modal */}

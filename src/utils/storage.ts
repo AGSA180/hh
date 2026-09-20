@@ -27,19 +27,31 @@ export function saveReportToArchive(data: ReportData, asNew: boolean = false): S
   const currentList = getSavedReports();
   const now = new Date().toISOString();
 
-  const reportId = asNew || !data.id || data.id === 'rep_init' ? `rep_${Date.now()}` : data.id;
+  const reportId = asNew || !data.id || data.id === 'rep_init' ? `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}` : data.id;
 
   const dateString = `${data.dateDay || '15'}/${data.dateMonth || '03'}/${data.dateYear || '1448'}`;
   const dayName = data.dayName || 'الأحد';
 
+  let title = data.title?.trim() || '';
+  if (!title) {
+    if (data.reportType === 'item') {
+      title = `تقرير مستقل: ${data.targetDomain || data.selectedDomains[0] || 'بند مدرسي'}`;
+    } else if (data.reportType === 'weekly') {
+      title = `التقرير الأسبوعي الشامل - الأسبوع ${data.weekNumber || 'الخامس'}`;
+    } else {
+      title = `تقرير المتابعة اليومي - يوم ${dayName} (${dateString})`;
+    }
+  }
+
   const updatedData: ReportData = {
     ...data,
     id: reportId,
+    title,
   };
 
   const newEntry: SavedReport = {
     id: reportId,
-    title: data.title || 'تقرير مدرسي وميداني',
+    title,
     reportType: data.reportType || 'daily',
     targetDomain: data.targetDomain || (data.selectedDomains.length === 1 ? data.selectedDomains[0] : undefined),
     dateString,
@@ -60,7 +72,12 @@ export function saveReportToArchive(data: ReportData, asNew: boolean = false): S
     nextList = [newEntry, ...currentList];
   }
 
-  localStorage.setItem(SAVED_REPORTS_KEY, JSON.stringify(nextList));
+  try {
+    localStorage.setItem(SAVED_REPORTS_KEY, JSON.stringify(nextList));
+  } catch (err) {
+    console.error('Failed to save report to archive:', err);
+  }
+
   return newEntry;
 }
 
