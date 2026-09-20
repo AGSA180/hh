@@ -42,30 +42,49 @@ export const ReportDomainSelector: React.FC<ReportDomainSelectorProps> = ({
   };
 
   return (
-    <section className="mb-5 border border-slate-300 rounded-md overflow-hidden bg-white">
-      <div className="bg-emerald-50 text-emerald-950 px-4 py-2.5 border-b border-slate-300 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-bold text-xs sm:text-sm">مجال التقرير (اختر المجال المناسب):</h2>
-        {!isReadOnly && onSetSelectedDomains && (
-          <div className="no-print flex items-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className="text-[11px] font-bold text-emerald-900 bg-white hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded transition"
-            >
-              تحديد جميع المجالات (12)
-            </button>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 px-2 py-0.5 rounded transition"
-            >
-              إلغاء التحديد
-            </button>
+    <>
+      {/* Compact Official Print Line (Takes ~6mm on single A4 page) */}
+      <div className="hidden print:flex items-center justify-between border border-slate-300 rounded bg-slate-50/90 px-2.5 py-1 text-[8pt] mb-1.5 leading-snug">
+        <div className="flex items-center gap-1.5 flex-1">
+          <strong className="text-slate-900 font-bold shrink-0">مجال التقرير:</strong>
+          <span className="text-emerald-950 font-extrabold">
+            {selectedDomains.length > 0 ? selectedDomains.join(' • ') : 'متابعة ميدانية عامة'}
+            {isOtherActive && otherDomain ? ` (${otherDomain})` : ''}
+          </span>
+        </div>
+        {domainDetails && (
+          <div className="mr-2 pr-2 border-r border-slate-300">
+            <strong className="text-slate-900 font-bold">النطاق / الموقع: </strong>
+            <span className="text-slate-800 font-medium">{domainDetails}</span>
           </div>
         )}
       </div>
 
-      <div className="p-3 sm:p-4">
+      {/* Screen Interactive Selector (Hidden on print) */}
+      <section className="mb-5 border border-slate-300 rounded-md overflow-hidden bg-white print:hidden">
+        <div className="bg-emerald-50 text-emerald-950 px-3 sm:px-4 py-2.5 border-b border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="font-bold text-xs sm:text-sm">مجال التقرير (اختر المجال المناسب):</h2>
+          {!isReadOnly && onSetSelectedDomains && (
+            <div className="no-print flex items-center gap-1.5 sm:gap-2 text-xs">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-[11px] font-bold text-emerald-900 bg-white hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded transition"
+              >
+                تحديد الكل (12)
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded transition"
+              >
+                إلغاء التحديد
+              </button>
+            </div>
+          )}
+        </div>
+
+      <div className="p-2.5 sm:p-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5">
           {REPORT_DOMAINS.map((domain) => {
             const isChecked = selectedDomains.includes(domain);
@@ -75,7 +94,7 @@ export const ReportDomainSelector: React.FC<ReportDomainSelectorProps> = ({
                 onClick={(e) => {
                   if (isReadOnly) e.preventDefault();
                 }}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded text-xs sm:text-sm border transition select-none cursor-pointer ${
+                className={`flex items-center gap-2 px-2.5 py-2 rounded text-xs sm:text-sm border transition select-none cursor-pointer min-h-[44px] ${
                   isChecked
                     ? 'bg-emerald-50/80 border-emerald-600 text-emerald-950 font-bold'
                     : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium'
@@ -93,7 +112,7 @@ export const ReportDomainSelector: React.FC<ReportDomainSelectorProps> = ({
                 ) : (
                   <Square className="w-4 h-4 text-slate-400 shrink-0" />
                 )}
-                <span className="truncate">{domain}</span>
+                <span className="leading-snug">{domain}</span>
               </label>
             );
           })}
@@ -190,5 +209,6 @@ export const ReportDomainSelector: React.FC<ReportDomainSelectorProps> = ({
         </div>
       </div>
     </section>
+    </>
   );
 };

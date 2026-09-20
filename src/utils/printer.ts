@@ -63,7 +63,7 @@ export async function printReportDocument(
             <style>
               @page {
                 size: A4 portrait;
-                margin: 8mm 10mm;
+                margin: 3.5mm 5mm !important;
               }
               body {
                 margin: 0;
@@ -121,19 +121,36 @@ export async function printReportDocument(
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
               }
               @media print {
-                body {
+                html, body {
+                  width: 210mm !important;
+                  max-width: 210mm !important;
+                  height: 297mm !important;
+                  max-height: 297mm !important;
+                  overflow: hidden !important;
                   background: #ffffff !important;
                   padding: 0 !important;
+                  font-size: 8.5pt !important;
+                  line-height: 1.35 !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
                 }
                 .no-print, .print-banner {
                   display: none !important;
                 }
-                .report-container {
+                .report-container, .report-page-container {
                   box-shadow: none !important;
-                  border: none !important;
+                  border: 1.5pt solid #064e3b !important;
                   border-radius: 0 !important;
+                  padding: 2.5mm 3.5mm !important;
                   max-width: 100% !important;
+                  width: 100% !important;
+                  max-height: 288mm !important;
+                  height: auto !important;
                   margin: 0 !important;
+                  page-break-inside: avoid !important;
+                  page-break-after: avoid !important;
+                  break-after: avoid !important;
+                  overflow: hidden !important;
                 }
               }
             </style>

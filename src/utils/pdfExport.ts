@@ -28,9 +28,11 @@ export async function exportReportToPdf(
     scrollX: 0,
     scrollY: 0,
     onclone: (clonedDoc) => {
-      // Ensure the cloned container has white background and clean presentation
+      // Ensure the cloned container has white background, formal dimensions, and clean presentation
       const clonedElement = clonedDoc.getElementById(elementId);
       if (clonedElement) {
+        clonedElement.style.width = '794px';
+        clonedElement.style.maxWidth = '794px';
         clonedElement.style.margin = '0 auto';
         clonedElement.style.boxShadow = 'none';
         clonedElement.style.borderRadius = '0';
@@ -54,47 +56,25 @@ export async function exportReportToPdf(
 
   const pdfWidth = 210;
   const pdfHeight = 297;
-  const margin = 7; // 7mm margins
+  const margin = 5; // 5mm margins
   const printableWidth = pdfWidth - margin * 2;
   const printableHeight = pdfHeight - margin * 2;
 
-  const imgWidth = printableWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  // Calculate proportional dimensions strictly fitting on 1 single page
+  const canvasAspectRatio = canvas.width / canvas.height;
+  let finalWidth = printableWidth;
+  let finalHeight = finalWidth / canvasAspectRatio;
 
-  if (imgHeight <= printableHeight) {
-    // Fits perfectly in single page
-    pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight, undefined, 'FAST');
-  } else {
-    // If it's only slightly larger (within 10%), scale to fit 1 page elegantly
-    if (imgHeight <= printableHeight * 1.1) {
-      const fittedWidth = (printableHeight * canvas.width) / canvas.height;
-      const xOffset = margin + (printableWidth - fittedWidth) / 2;
-      pdf.addImage(imgData, 'JPEG', xOffset, margin, fittedWidth, printableHeight, undefined, 'FAST');
-    } else {
-      // Multi-page export with page slicing
-      let heightLeft = imgHeight;
-      let position = margin;
-      let page = 0;
-
-      while (heightLeft > 0) {
-        if (page > 0) {
-          pdf.addPage();
-        }
-        pdf.addImage(
-          imgData,
-          'JPEG',
-          margin,
-          position - page * printableHeight,
-          imgWidth,
-          imgHeight,
-          undefined,
-          'FAST'
-        );
-        heightLeft -= printableHeight;
-        page++;
-      }
-    }
+  if (finalHeight > printableHeight) {
+    finalHeight = printableHeight;
+    finalWidth = finalHeight * canvasAspectRatio;
   }
+
+  const xOffset = margin + (printableWidth - finalWidth) / 2;
+  const yOffset = margin + (printableHeight - finalHeight) / 2;
+
+  // Single page guaranteed without splitting
+  pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight, undefined, 'FAST');
 
   pdf.save(fileName);
 }

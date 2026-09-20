@@ -6,6 +6,8 @@ import {
   ReportType,
   createWeeklyReportData,
   createDailyReportData,
+  createItemReportData,
+  SavedReport,
   REPORT_DOMAINS,
 } from './types';
 import { SAMPLE_REPORT } from './data/sampleReport';
@@ -18,6 +20,16 @@ import { ReportImagesSection } from './components/ReportImagesSection';
 import { SignaturesSection } from './components/SignaturesSection';
 import { ActionBar } from './components/ActionBar';
 import { MarkdownModal } from './components/MarkdownModal';
+import { IndependentReportModal } from './components/IndependentReportModal';
+import { SavedReportsModal } from './components/SavedReportsModal';
+import {
+  getSavedReports,
+  saveReportToArchive,
+  deleteReportFromArchive,
+  duplicateSavedReport,
+  exportArchiveToJson,
+  importArchiveFromJson,
+} from './utils/storage';
 import { generateMarkdown } from './utils/formatters';
 import { exportReportToPdf } from './utils/pdfExport';
 import { printReportDocument } from './utils/printer';
@@ -43,6 +55,9 @@ export default function App() {
   const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [isMarkdownModalOpen, setIsMarkdownModalOpen] = useState<boolean>(false);
+  const [isIndependentModalOpen, setIsIndependentModalOpen] = useState<boolean>(false);
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState<boolean>(false);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>(() => getSavedReports());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hasSavedDraft, setHasSavedDraft] = useState<boolean>(() => {
     return !!localStorage.getItem(DRAFT_STORAGE_KEY);
@@ -130,6 +145,89 @@ export default function App() {
       }
     } catch {
       showToast('فشل استرجاع المسودة');
+    }
+  };
+
+  const handleSelectIndependentDomain = (domain: string) => {
+    const itemData = createItemReportData(domain, reportData);
+    setReportData(itemData);
+    setIsIndependentModalOpen(false);
+    showToast(`تم إنشاء تقرير مستقل لبند: ${domain}`);
+  };
+
+  const handleSaveToArchive = () => {
+    const saved = saveReportToArchive(reportData);
+    setSavedReports(getSavedReports());
+    setReportData((prev) => ({ ...prev, id: saved.id }));
+    showToast(`تم حفظ التقرير في الأرشيف بنجاح (${saved.title})`);
+  };
+
+  const handleLoadReport = (report: SavedReport) => {
+    setReportData(report.data);
+    setIsArchiveModalOpen(false);
+    showToast(`تم استرجاع التقرير: ${report.title}`);
+  };
+
+  const handleDeleteReport = (id: string) => {
+    deleteReportFromArchive(id);
+    setSavedReports(getSavedReports());
+    showToast('تم حذف التقرير من الأرشيف بنجاح');
+  };
+
+  const handleDuplicateReport = (id: string) => {
+    const duplicated = duplicateSavedReport(id);
+    setSavedReports(getSavedReports());
+    if (duplicated) {
+      showToast(`تم تكرار التقرير بنجاح: ${duplicated.title}`);
+    }
+  };
+
+  const handleNewReportFromArchive = () => {
+    setIsArchiveModalOpen(false);
+    setIsIndependentModalOpen(true);
+  };
+
+  const handleDirectPrintFromArchive = async (report: SavedReport) => {
+    setReportData(report.data);
+    setIsArchiveModalOpen(false);
+    showToast(`جاري تجهيز طباعة التقرير: ${report.title}...`);
+    setTimeout(() => {
+      handlePrint();
+    }, 250);
+  };
+
+  const handleDirectPdfFromArchive = async (report: SavedReport) => {
+    setReportData(report.data);
+    setIsArchiveModalOpen(false);
+    showToast(`جاري تصدير PDF للتقرير: ${report.title}...`);
+    setTimeout(() => {
+      handleExportPdf();
+    }, 250);
+  };
+
+  const handleExportBackup = () => {
+    try {
+      const jsonStr = exportArchiveToJson();
+      const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ارشيف_تقارير_الشؤون_المدرسية_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('تم تنزيل ملف النسخة الاحتياطية للأرشيف بنجاح');
+    } catch {
+      showToast('تعذر تصدير النسخة الاحتياطية');
+    }
+  };
+
+  const handleImportBackup = (jsonContent: string) => {
+    try {
+      const count = importArchiveFromJson(jsonContent);
+      setSavedReports(getSavedReports());
+      showToast(`تم استيراد ${count} تقرير بنجاح إلى الأرشيف`);
+    } catch (err: any) {
+      showToast(err.message || 'فشل استيراد الملف');
     }
   };
 
@@ -336,6 +434,10 @@ export default function App() {
         onPrintWeekly={handlePrintWeekly}
         onSwitchToDaily={handleSwitchToDaily}
         onSwitchToWeekly={handleSwitchToWeekly}
+        onOpenIndependentModal={() => setIsIndependentModalOpen(true)}
+        onOpenArchiveModal={() => setIsArchiveModalOpen(true)}
+        onSaveToArchive={handleSaveToArchive}
+        savedReportsCount={savedReports.length}
       />
 
       {/* Markdown Raw Code Modal */}
@@ -345,36 +447,67 @@ export default function App() {
         markdownContent={generateMarkdown(reportData)}
       />
 
+      {/* Independent Item Report Domain Picker Modal */}
+      <IndependentReportModal
+        isOpen={isIndependentModalOpen}
+        onClose={() => setIsIndependentModalOpen(false)}
+        onSelectDomain={handleSelectIndependentDomain}
+        currentDomain={
+          reportData.targetDomain ||
+          (reportData.selectedDomains.length === 1 ? reportData.selectedDomains[0] : undefined)
+        }
+      />
+
+      {/* Saved Reports Archive Modal */}
+      <SavedReportsModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        savedReports={savedReports}
+        currentReportId={reportData.id}
+        onLoadReport={handleLoadReport}
+        onDeleteReport={handleDeleteReport}
+        onDuplicateReport={handleDuplicateReport}
+        onNewReport={handleNewReportFromArchive}
+        onDirectPrint={handleDirectPrintFromArchive}
+        onDirectPdf={handleDirectPdfFromArchive}
+        onExportBackup={handleExportBackup}
+        onImportBackup={handleImportBackup}
+      />
+
       {/* Main Document Viewport */}
-      <main className="flex-1 py-6 px-3 sm:px-6">
+      <main className="flex-1 py-3 sm:py-6 px-2 sm:px-6">
         <div className="max-w-4xl mx-auto">
           {/* Mode Banner Indicator */}
-          <div className="no-print mb-4 flex items-center justify-between text-xs text-slate-500 px-1">
+          <div className="no-print mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-slate-500 px-1">
             <span className="flex items-center gap-1.5 font-medium">
               {isReadOnly ? (
                 <>
                   <Eye className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>وضع المعاينة الورقية الرسمية (العرض النهائي للطباعة)</span>
+                  <span>معاينة المستند الرسمي للطباعة</span>
                 </>
               ) : (
                 <>
                   <Edit3 className="w-3.5 h-3.5 text-slate-600" />
-                  <span>وضع التحرير المباشر (يمكنك تعديل أي نص أو خانة مباشرة)</span>
+                  <span>وضع التحرير المباشر (تعديل البيانات)</span>
                 </>
               )}
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               {reportData.reportType === 'weekly' ? (
-                <span className="text-emerald-900 bg-emerald-100 font-bold px-2 py-0.5 rounded border border-emerald-300">
+                <span className="text-emerald-900 bg-emerald-100 font-bold px-2 py-0.5 rounded border border-emerald-300 text-[11px] sm:text-xs">
                   التقرير الأسبوعي الشامل (12 بنداً)
                 </span>
+              ) : reportData.reportType === 'item' ? (
+                <span className="text-blue-900 bg-blue-100 font-bold px-2 py-0.5 rounded border border-blue-300 text-[11px] sm:text-xs">
+                  تقرير مستقل لبند: {reportData.targetDomain || reportData.selectedDomains[0] || 'مخصص'}
+                </span>
               ) : (
-                <span className="text-slate-800 bg-slate-200 font-bold px-2 py-0.5 rounded border border-slate-300">
-                  تقرير يومي وميداني ({reportData.dayName || 'اليومي'})
+                <span className="text-slate-800 bg-slate-200 font-bold px-2 py-0.5 rounded border border-slate-300 text-[11px] sm:text-xs">
+                  تقرير يومي ({reportData.dayName || 'اليومي'})
                 </span>
               )}
-              <span className="text-slate-500 font-medium">
-                مقاس الورقة: A4 عمودي
+              <span className="text-slate-500 font-medium text-[11px] sm:text-xs hidden xs:inline">
+                A4 صفحة واحدة
               </span>
             </div>
           </div>
@@ -382,10 +515,10 @@ export default function App() {
           {/* Official Printable Report Container */}
           <div
             id="official-report-document"
-            className="report-page-container bg-white rounded-lg shadow-md border-2 border-emerald-900/40 p-6 sm:p-10 relative"
+            className="report-page-container bg-white rounded-lg shadow-md border sm:border-2 border-emerald-900/40 p-2.5 sm:p-8 md:p-10 relative print:p-6"
           >
             {/* Inner Border Line for Formal Saudi Documents */}
-            <div className="border border-emerald-900/30 p-4 sm:p-7 rounded-sm">
+            <div className="border border-emerald-900/30 p-2.5 sm:p-5 md:p-7 rounded-sm print:p-4">
               {/* Header */}
               <ReportHeader
                 dateDay={reportData.dateDay}

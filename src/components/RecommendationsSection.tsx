@@ -28,19 +28,19 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
   };
 
   return (
-    <section className="mb-6 rounded-md border border-slate-300 bg-white overflow-hidden">
-      <div className="bg-emerald-50 text-emerald-950 px-4 py-2.5 border-b border-slate-300 flex items-center justify-between">
-        <h2 className="font-bold text-xs sm:text-sm flex items-center gap-2">
+    <section className="mb-6 rounded-md border border-slate-300 bg-white overflow-hidden print:mb-1.5 print:border-slate-400">
+      <div className="bg-emerald-50 text-emerald-950 px-3 sm:px-4 py-2.5 border-b border-slate-300 flex items-center justify-between print:py-0.8 print:px-2 print:bg-slate-100">
+        <h2 className="font-bold text-xs sm:text-sm flex items-center gap-2 print:text-[8.5pt]">
           <MessageSquareQuote className="w-4 h-4 text-emerald-800" />
           المرئيات والتوصيات المقترحة:
         </h2>
       </div>
 
-      <div className="p-3 sm:p-4">
+      <div className="p-2.5 sm:p-4 print:p-1.5">
         {isReadOnly ? (
-          <div className="min-h-[80px] text-xs sm:text-sm leading-relaxed text-slate-800 whitespace-pre-line">
+          <div className="min-h-[80px] text-xs sm:text-sm leading-relaxed text-slate-800 whitespace-pre-line print:min-h-0 print:text-[8pt] print:leading-normal">
             {recommendations || (
-              <p className="text-slate-400 font-mono tracking-widest leading-loose">
+              <p className="text-slate-400 font-mono tracking-widest leading-loose print:text-[7pt] print:leading-normal">
                 ........................................................................................................................................................................................................................................................................................................
               </p>
             )}
@@ -52,13 +52,13 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
               value={recommendations}
               onChange={(e) => onChangeRecommendations(e.target.value)}
               placeholder="اكتب التوصيات الإدارية والمرئيات المقترحة هنا لمعالجة الملاحظات المرصودة أو تعزيز الإيجابيات..."
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded focus:outline-hidden focus:ring-2 focus:ring-emerald-600 leading-relaxed font-medium text-slate-900 placeholder:text-slate-400"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:outline-hidden focus:ring-2 focus:ring-emerald-600 leading-relaxed font-medium text-slate-900 placeholder:text-slate-400"
             />
 
             {/* Quick Suggestions Pills */}
             <div className="no-print mt-3 pt-2.5 border-t border-slate-100">
               <span className="text-[11px] text-slate-500 font-semibold mb-1.5 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-600" />
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 اقتراحات وتوصيات إدارية شائعة بنقرة واحدة:
               </span>
               <div className="flex flex-wrap gap-1.5 mt-1">
@@ -67,9 +67,9 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
                     key={index}
                     type="button"
                     onClick={() => handleAppendSuggestion(item)}
-                    className="text-[11px] bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200 px-2 py-1 rounded transition text-right"
+                    className="text-[11px] bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200 px-2.5 py-1.5 rounded-md transition text-right leading-snug"
                   >
-                    + {item.slice(0, 48)}...
+                    + {item}
                   </button>
                 ))}
               </div>
